@@ -74,3 +74,52 @@ endfunction
 function SayChar()
 	call SPDSayPunctAll(getline('.')[col('.')-1])
 endfunction
+
+" Get text between two marks, according to the motion type (line, block, char)
+function s:get_text(start, end, motion)
+	let [lnum1, col1] = getpos(a:start)[1:2]
+	let [lnum2, col2] = getpos(a:end)[1:2]
+	let lines = getline(lnum1, lnum2)
+
+	" TODO: How does this behave with inclusive/excusive
+	if a:motion == 'line'
+		" Motion is linewise
+	elseif a:motion == 'block'
+		let blockdata = []
+		for line in lines
+			let blockline = line[col1-1:col2-1]
+			let blockdata = blockdata + [blockline]
+		endfor
+		let lines = blockdata
+	else
+		let lines[-1] = lines[-1][: col2 - 1]
+		let lines[0] = lines[0][col1 - 1:]
+	endif
+
+	return join(lines, "\n")
+endfunction
+
+function SayMotion(motion)
+	let text = s:get_text("'[", "']", a:motion)
+	call SPDSay(text)
+	if exists('g:SayMotionView')
+		call winrestview(g:SayMotionView)
+	endif
+endfunction
+" Set opfunc=SayMotion, setting the restore context
+function SetupSayMotion()
+	let g:SayMotionView=winsaveview()
+	set opfunc=SayMotion
+endfunction
+
+function! SaySelection()
+	let m = visualmode()
+	if m == "v"
+		call SPDSay(s:get_text("'<", "'>", 'char'))
+	elseif m == "V"
+		call SPDSay(s:get_text("'<", "'>", 'line'))
+	else
+		call SPDSay(s:get_text("'<", "'>", 'block'))
+	endif
+endfunction
+
